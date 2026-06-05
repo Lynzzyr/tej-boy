@@ -1,0 +1,26 @@
+{
+  "name": "tej-boy",
+  "version": "1.0.0",
+  "description": "A TEJ FPT",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lynzzyr/tej-boy.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Lynzzyr/tej-boy/issues"
+  },
+  "homepage": "https://github.com/Lynzzyr/tej-boy#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "serialport": "^13.0.0",
+    "socket.io": "^4.8.3"
+  }
+}
