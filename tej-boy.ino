@@ -23,6 +23,14 @@
 #define PIN_MAT_CLK 10
 #define PIN_MAT_CS 9
 
+// ----------
+// CONSTANTS
+// ----------
+
+const String SIG_STOP_GAME = "A";
+const String SIG_GAMEID_1 = "B";
+const String SIG_GAMEID_2 = "C";
+
 // ------------------
 // GLOBALS AND STUFF
 // ------------------
@@ -32,6 +40,8 @@ LedControl lc = LedControl(PIN_MAT_DIN, PIN_MAT_CLK, PIN_MAT_CS); // LED matrix 
 bool ledStatus[8][8] = {0}; // matrix tracker
 bool buttonStatus[5] = {0}; // button state tracker, in order of L_SW, L_SE, L_NE, R_DN, R_UP
 bool buttonHoldStatus[5] = {0}; // button hold tracker
+
+uint8_t nowGameID = 0; // what game ID is running right now, 0 is no game running
 
 // ----------
 // FUNCTIONS
@@ -46,6 +56,20 @@ void setLedUpright(uint8_t row, uint8_t col, bool state) {
   ledStatus[row][col] = state; // tracker array
 }
 
+/** Clears state of device and unloads any running game. */
+void clear() {
+  nowGameID = 0; // unload game
+
+  lc.clearDisplay(0);
+  for (uint8_t i = 0; i < 8; i++) { // reset tracker array
+    for (uint8_t j = 0; j < 8; j++) {
+      ledStatus[i][j] = 0;
+    }
+  }
+
+  digitalWrite(PIN_LED, HIGH);
+}
+
 // ------------------------------
 // GAME HOLDER CLASSES & OBJECTS
 // ------------------------------
@@ -55,7 +79,7 @@ enum Direction : uint8_t {
   UP, DOWN, LEFT, RIGHT
 };
 
-/** Everything needed to run Pong. */
+/** Everything needed to run Pong, game ID 1. */
 class Pong {
   private:
     uint8_t dotsPerSec; // speed of ball
@@ -87,7 +111,7 @@ class Pong {
     }
 };
 
-/** Everything needed to run Snake. */
+/** Everything needed to run Snake, game ID 2. */
 class Snake {
   private:
     uint8_t dotsPerSec; // speed of snake
@@ -120,9 +144,34 @@ class Snake {
     }
 };
 
-void setup() {
-  // put your setup code here, to run once:
+// -------------
+// GAME OBJECTS
+// -------------
 
+Pong gamePong = Pong(3, 3);
+Snake gameSnake = Snake(3);
+
+// --------
+// ARDUINO
+// --------
+
+void setup() {
+  // pins
+  pinMode(PIN_BUT_L_SW, INPUT);
+  pinMode(PIN_BUT_L_SE, INPUT);
+  pinMode(PIN_BUT_L_NE, INPUT);
+
+  pinMode(PIN_BUT_R_DN, INPUT);
+  pinMode(PIN_BUT_R_UP, INPUT);
+
+  pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_PZO, OUTPUT);
+
+  // serial
+  Serial.begin(9600);
+
+  // init
+  clear();
 }
 
 void loop() {
@@ -177,5 +226,36 @@ void loop() {
     }
   } else {
     buttonHoldStatus[4] = 0; // signal release
+  }
+
+  // game load, unload, and reset stack
+
+  if (Serial.available()) {
+    String nextSig = Serial.readString();
+
+    switch (nextSig) { // condition thru all possible signals
+      case SIG_STOP_GAME:
+        clear();
+        break;
+      case SIG_GAMEID_1: // pong
+        nowGameID = 1;
+        gamePong.reset();
+        break;
+      case SIG_GAMEID_2: // snake
+        nowGameID = 2;
+        gameSnake.reset();
+        break;
+    }
+  }
+
+  // game loop stack
+
+  switch (nowGameID) { // condition thru all games
+    case 1:
+      gamePong.loop(0 /* TODO THIS IS A PLACEHOLDER FIX THIS */);
+      break;
+    case 2:
+      gameSnake.loop(0 /* HERE TOO */);
+      break;
   }
 }
