@@ -27,9 +27,9 @@
 // CONSTANTS
 // ----------
 
-const String SIG_STOP_GAME = "A";
-const String SIG_GAMEID_1 = "B";
-const String SIG_GAMEID_2 = "C";
+const uint8_t SIG_STOP_GAME = 1;
+const uint8_t SIG_GAMEID_1 = 2;
+const uint8_t SIG_GAMEID_2 = 3;
 
 // ------------------
 // GLOBALS AND STUFF
@@ -231,7 +231,7 @@ void loop() {
   // game load, unload, and reset stack
 
   if (Serial.available()) {
-    String nextSig = Serial.readString();
+    uint8_t nextSig = Serial.parseInt();
 
     switch (nextSig) { // condition thru all possible signals
       case SIG_STOP_GAME:
