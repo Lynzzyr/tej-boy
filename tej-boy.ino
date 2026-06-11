@@ -43,6 +43,8 @@ bool buttonHoldStatus[5] = {0}; // button hold tracker
 
 uint8_t nowGameID = 0; // what game ID is running right now, 0 is no game running
 
+unsigned long lastMillis = 0; // previous loop timestamp
+
 // ----------
 // FUNCTIONS
 // ----------
@@ -250,12 +252,17 @@ void loop() {
 
   // game loop stack
 
+  unsigned long now = millis();
+  unsigned int delta = now - lastMillis; // find one consistent time delta
+
   switch (nowGameID) { // condition thru all games
     case 1:
-      gamePong.loop(0 /* TODO THIS IS A PLACEHOLDER FIX THIS */);
+      gamePong.loop(delta);
       break;
     case 2:
-      gameSnake.loop(0 /* HERE TOO */);
+      gameSnake.loop(delta);
       break;
   }
+
+  lastMillis = now; // track this timestamp
 }
