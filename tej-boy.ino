@@ -76,8 +76,6 @@ void clearMatrix() {
       ledStatus[i][j] = false;
     }
   }
-
-  digitalWrite(PIN_LED, HIGH);
 }
 
 /** Returns an inverted direction of the specified direction based on given mode. FALSE inverts in vertical, TRUE inverts in horizontal. */
