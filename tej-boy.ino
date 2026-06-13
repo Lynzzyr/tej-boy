@@ -45,6 +45,16 @@ uint8_t nowGameID = 0; // what game ID is running right now, 0 is no game runnin
 
 unsigned long lastMillis = 0; // previous loop timestamp
 
+// ------
+// ENUMS
+// ------
+
+/** Direction specification. */
+enum Direction : uint8_t {
+  UP, DOWN, LEFT, RIGHT,
+  NOEA, NOWE, SOWE, SOEA // cause apparently "SE" is a built-in macro WHY
+};
+
 // ----------
 // FUNCTIONS
 // ----------
@@ -72,29 +82,69 @@ void clear() {
   digitalWrite(PIN_LED, HIGH);
 }
 
+/** Returns an inverted direction of the specified direction based on given mode. FALSE inverts in vertical, TRUE inverts in horizontal. */
+Direction invertDirection(Direction dir, bool mode) {
+  if (mode) {
+    if (dir == UP) return UP;
+    if (dir == DOWN) return DOWN;
+    if (dir == LEFT) return RIGHT;
+    if (dir == RIGHT) return LEFT;
+
+    if (dir == NOEA) return NOWE;
+    if (dir == NOWE) return NOEA;
+    if (dir == SOWE) return SOEA;
+    if (dir == SOEA) return SOWE;
+  }
+  else {
+    if (dir == UP) return DOWN;
+    if (dir == DOWN) return UP;
+    if (dir == LEFT) return LEFT;
+    if (dir == RIGHT) return RIGHT;
+
+    if (dir == NOEA) return SOEA;
+    if (dir == NOWE) return SOWE;
+    if (dir == SOWE) return NOWE;
+    if (dir == SOEA) return NOEA;
+  }
+}
+
 // ------------------------------
 // GAME HOLDER CLASSES & OBJECTS
 // ------------------------------
 
-/** Utility enum for direction specificaiton. */
-enum Direction : uint8_t {
-  UP, DOWN, LEFT, RIGHT
-};
-
 /** Everything needed to run Pong, game ID 1. */
 class Pong {
   private:
-    uint8_t dotsPerSec; // speed of ball
+    // fields
+
+    unsigned int msPerDot; // speed of ball as an inverse function
     uint8_t platLength; // platform length
 
     uint8_t locPlatL; // left platform row, topmost dot
     uint8_t locPlatR; // right platform row
   
-    uint8_t locBall[2]; // ball location
+    uint8_t locBall[2]; // ball location on matrix
+    Direction dir; // ball direction
+
+    unsigned int ballMoveTimer; // fills up each delta until reaches threshold to move ball
+    bool shouldBallMove;
+
+    // functions
+
+    /** Render both platforms based on current specified location. */
+    void renderPlats() {
+      for (uint8_t i = 0; i < platLength; i++) { // render left plat
+        setLedUpright(locPlatL + i, 0, true);
+      }
+      for (uint8_t i = 0; i < platLength; i++) { // render right plat
+        setLedUpright(locPlatR + i, 7, true);
+      }
+    }
   
   public:
+    /** Pong constructor. Specify speed in dots per second. */
     Pong(uint8_t speed, uint8_t platLength) {
-      dotsPerSec = speed;
+      msPerDot = (unsigned int) round(1 / (speed / 1000)); // round off decimals it's probably close enough
       this->platLength = platLength;
     }
 
@@ -103,11 +153,79 @@ class Pong {
       locPlatL = 0; // top
       locPlatR = 0; // top
 
-      locBall[0] = locBall[1] = 5; // first ever location (5, 5)
+      locBall[0] = 4; // first ever location (4, 2)
+      locBall[1] = 2;
+      dir = SOEA;
     }
 
     /** Game loop. Call every iteration. Takes in last time delta in ms. */
     void loop(unsigned int delta) {
+      // ball move-decision and bounce stack
+
+      shouldBallMove = false; // always first
+
+      ballMoveTimer += delta;
+      if (ballMoveTimer >= msPerDot) { // it's time
+        shouldBallMove = true;
+        ballMoveTimer -= msPerDot; // reset and retain any leftover
+      }
+
+      if (shouldBallMove) { // collision detection
+        // find status
+        bool isUp = locBall[0] == 0;
+        bool isDown = locBall[0] == 7;
+        bool isLeft = ledStatus[locBall[0]][locBall[1] - 1];
+        bool isRight = ledStatus[locBall[0]][locBall[1] + 1];
+
+        // floor/ceil AND plat edge cases
+        if (isUp && isLeft) { // ceil AND left plat
+          dir = SOEA;
+        }
+        else if (isUp && isRight) { // ceil AND right plat
+          dir = SOWE;
+        }
+        else if (isDown && isLeft) { // floor AND left plat
+          dir = NOEA;
+        }
+        else if (isDown && isRight) { // floor AND right plat
+          dir = NOWE;
+        }
+        // floor/ceil cases
+        else if (isUp || isDown) {
+          dir = invertDirection(dir, false);
+        }
+        // plat cases
+        else if (isLeft || isRight) {
+          dir = invertDirection(dir, true);
+        }
+      }
+
+      // ball move-action and render stack
+
+      if (shouldBallMove) {
+        setLedUpright(locBall[0], locBall[1], false); // turn off at current location, which will be past location
+
+        switch (dir) { // move ball
+          case NOEA:
+            locBall[0] -= 1;
+            locBall[1] += 1;
+            break;
+          case NOWE:
+            locBall[0] -= 1;
+            locBall[1] -= 1;
+            break;
+          case SOWE:
+            locBall[0] += 1;
+            locBall[1] -= 1;
+            break;
+          case SOEA:
+            locBall[0] += 1;
+            locBall[1] += 1;
+        }
+      }
+
+      setLedUpright(locBall[0], locBall[1], true); // turn on at current location, potentially now new location
+
       // platform move and render stack
 
       if (buttonStatus[1] || buttonStatus[2]) { // if change in left plat
@@ -127,12 +245,7 @@ class Pong {
         if (buttonStatus[4]) locPlatR = max(locPlatR - 1, 0); // move up, clip to top
       }
 
-      for (uint8_t i = 0; i < platLength; i++) { // render left plat
-        setLedUpright(locPlatL + i, 0, true);
-      }
-      for (uint8_t i = 0; i < platLength; i++) { // render right plat
-        setLedUpright(locPlatR + i, 7, true);
-      }
+      renderPlats();
     }
 };
 
@@ -197,7 +310,7 @@ void setup() {
 
   // led matrix
   lc.shutdown(0, false);
-  lc.setIntensity(0, 1);
+  lc.setIntensity(0, 1); // holy crap why is this thing so bright
 
   // init
   clear();
