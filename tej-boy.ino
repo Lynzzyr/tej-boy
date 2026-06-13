@@ -130,7 +130,7 @@ class Pong {
       for (uint8_t i = 0; i < platLength; i++) { // render left plat
         setLedUpright(locPlatL + i, 0, true);
       }
-      for (uint8_t i = 0; i < platLength; i++) {
+      for (uint8_t i = 0; i < platLength; i++) { // render right plat
         setLedUpright(locPlatR + i, 7, true);
       }
     }
@@ -194,6 +194,10 @@ void setup() {
 
   // serial
   Serial.begin(9600);
+
+  // led matrix
+  lc.shutdown(0, false);
+  lc.setIntensity(0, 1);
 
   // init
   clear();
@@ -264,10 +268,12 @@ void loop() {
         break;
       case SIG_GAMEID_1: // pong
         nowGameID = 1;
+        digitalWrite(PIN_LED, LOW);
         gamePong.reset();
         break;
       case SIG_GAMEID_2: // snake
         nowGameID = 2;
+        digitalWrite(PIN_LED, LOW);
         gameSnake.reset();
         break;
     }
@@ -281,6 +287,7 @@ void loop() {
   switch (nowGameID) { // condition thru all games
     case 1:
       gamePong.loop(delta);
+      Serial.println("loop " + String(delta));
       break;
     case 2:
       gameSnake.loop(delta);
