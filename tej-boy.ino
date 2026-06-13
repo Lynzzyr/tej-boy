@@ -68,10 +68,8 @@ void setLedUpright(uint8_t row, uint8_t col, bool state) {
   ledStatus[row][col] = state; // tracker array
 }
 
-/** Clears state of device and unloads any running game. */
-void clear() {
-  nowGameID = 0; // unload game
-
+/** Turns off all LEDs on the matrix and wipes the tracker accordingly. */
+void clearMatrix() {
   lc.clearDisplay(0);
   for (uint8_t i = 0; i < 8; i++) { // reset tracker array
     for (uint8_t j = 0; j < 8; j++) {
@@ -313,7 +311,8 @@ void setup() {
   lc.setIntensity(0, 1); // holy crap why is this thing so bright
 
   // init
-  clear();
+  clearMatrix();
+  digitalWrite(PIN_LED, HIGH);
 }
 
 void loop() {
@@ -377,7 +376,9 @@ void loop() {
 
     switch (nextSig) { // condition thru all possible signals
       case SIG_STOP_GAME:
-        clear();
+        nowGameID = 0;
+        clearMatrix();
+        digitalWrite(PIN_LED, HIGH);
         break;
       case SIG_GAMEID_1: // pong
         nowGameID = 1;
