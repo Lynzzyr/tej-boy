@@ -37,9 +37,9 @@ const uint8_t SIG_GAMEID_2 = 3;
 
 LedControl lc = LedControl(PIN_MAT_DIN, PIN_MAT_CLK, PIN_MAT_CS); // LED matrix object
 
-bool ledStatus[8][8] = {0}; // matrix tracker
-bool buttonStatus[5] = {0}; // button state tracker, in order of L_SW, L_SE, L_NE, R_DN, R_UP
-bool buttonHoldStatus[5] = {0}; // button hold tracker
+bool ledStatus[8][8] = {false}; // matrix tracker
+bool buttonStatus[5] = {false}; // button state tracker, in order of L_SW, L_SE, L_NE, R_DN, R_UP
+bool buttonHoldStatus[5] = {false}; // button hold tracker
 
 uint8_t nowGameID = 0; // what game ID is running right now, 0 is no game running
 
@@ -65,7 +65,7 @@ void clear() {
   lc.clearDisplay(0);
   for (uint8_t i = 0; i < 8; i++) { // reset tracker array
     for (uint8_t j = 0; j < 8; j++) {
-      ledStatus[i][j] = 0;
+      ledStatus[i][j] = false;
     }
   }
 
@@ -87,8 +87,8 @@ class Pong {
     uint8_t dotsPerSec; // speed of ball
     uint8_t platLength; // platform length
 
-    uint8_t locPlatL[2]; // left platform location, topmost dot
-    uint8_t locPlatR[2]; // right platform location
+    uint8_t locPlatL; // left platform row, topmost dot
+    uint8_t locPlatR; // right platform row
   
     uint8_t locBall[2]; // ball location
   
@@ -100,16 +100,39 @@ class Pong {
 
     /** Resets the game to start state. */
     void reset() {
-      locPlatL[0] = locPlatL[1] = 0; // top left
-      locPlatR[0] = 0; // top right
-      locPlatR[1] = 7;
+      locPlatL = 0; // top
+      locPlatR = 0; // top
 
       locBall[0] = locBall[1] = 5; // first ever location (5, 5)
     }
 
     /** Game loop. Call every iteration. Takes in last time delta in ms. */
     void loop(unsigned int delta) {
-      
+      // platform move and render stack
+
+      if (buttonStatus[1] || buttonStatus[2]) { // if change in left plat
+        for (uint8_t i = 0; i < 8; i++) {
+          setLedUpright(i, 0, false); // clear left column
+        }
+
+        if (buttonStatus[1]) locPlatL = max(locPlatL - 1, 0); // move up, clip to top
+        if (buttonStatus[2]) locPlatL = min(locPlatL + 1, 8 - platLength); // move down, clip to bottom
+      }
+      if (buttonStatus[3] || buttonStatus[4]) { // if change in right plat
+        for (uint8_t i = 0; i < 8; i++) {
+          setLedUpright(i, 7, false); // clear right column
+        }
+
+        if (buttonStatus[3]) locPlatR = max(locPlatR - 1, 0); // move up, clip to top
+        if (buttonStatus[4]) locPlatR = min(locPlatR + 1, 8 - platLength); // move down, clip to bottom
+      }
+
+      for (uint8_t i = 0; i < platLength; i++) { // render left plat
+        setLedUpright(locPlatL + i, 0, true);
+      }
+      for (uint8_t i = 0; i < platLength; i++) {
+        setLedUpright(locPlatR + i, 7, true);
+      }
     }
 };
 
