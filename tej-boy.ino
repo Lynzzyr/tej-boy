@@ -115,16 +115,16 @@ class Pong {
           setLedUpright(i, 0, false); // clear left column
         }
 
-        if (buttonStatus[1]) locPlatL = max(locPlatL - 1, 0); // move up, clip to top
-        if (buttonStatus[2]) locPlatL = min(locPlatL + 1, 8 - platLength); // move down, clip to bottom
+        if (buttonStatus[1]) locPlatL = min(locPlatL + 1, 8 - platLength); // move down, clip to bottom
+        if (buttonStatus[2]) locPlatL = max(locPlatL - 1, 0); // move up, clip to top
       }
       if (buttonStatus[3] || buttonStatus[4]) { // if change in right plat
         for (uint8_t i = 0; i < 8; i++) {
           setLedUpright(i, 7, false); // clear right column
         }
 
-        if (buttonStatus[3]) locPlatR = max(locPlatR - 1, 0); // move up, clip to top
-        if (buttonStatus[4]) locPlatR = min(locPlatR + 1, 8 - platLength); // move down, clip to bottom
+        if (buttonStatus[3]) locPlatR = min(locPlatR + 1, 8 - platLength); // move down, clip to bottom
+        if (buttonStatus[4]) locPlatR = max(locPlatR - 1, 0); // move up, clip to top
       }
 
       for (uint8_t i = 0; i < platLength; i++) { // render left plat
@@ -287,7 +287,6 @@ void loop() {
   switch (nowGameID) { // condition thru all games
     case 1:
       gamePong.loop(delta);
-      Serial.println("loop " + String(delta));
       break;
     case 2:
       gameSnake.loop(delta);
