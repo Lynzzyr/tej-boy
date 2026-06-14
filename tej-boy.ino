@@ -78,6 +78,14 @@ void clearMatrix() {
   }
 }
 
+/** Play a universal game fail sound. THIS IS A BLOCKING FUNCTION. */
+void playFailSound() {
+  tone(PIN_PZO, 165); // E3
+  delay(1000);
+  tone(PIN_PZO, 117); // A2
+  delay(2000);
+}
+
 /** Returns an inverted direction of the specified direction based on given mode. FALSE inverts in vertical, TRUE inverts in horizontal. */
 Direction invertDirection(Direction dir, bool mode) {
   if (mode) {
@@ -138,9 +146,11 @@ class Pong {
     }
   
   public:
+    bool isGameOver;
+
     /** Pong constructor. Specify speed in dots per second. */
     Pong(uint8_t speed, uint8_t platLength) {
-      msPerDot = (unsigned int) round(1 / (speed / 1000)); // round off decimals it's probably close enough
+      msPerDot = (unsigned int) round(1000.0 / speed); // round off decimals it's probably close enough
       this->platLength = platLength;
     }
 
@@ -152,10 +162,43 @@ class Pong {
       locBall[0] = 4; // first ever location (4, 2)
       locBall[1] = 2;
       dir = SOEA;
+
+      ballMoveTimer = 0;
+
+      isGameOver = false;
+    }
+
+    /** Intro sequence post-load. THIS IS A BLOCKING FUNCTION. */
+    void onIntro() {
+      // show stuff
+      renderPlats();
+      setLedUpright(locBall[0], locBall[1], true);
+
+      // sound
+      for (uint8_t i = 0; i < 3; i++) { // blocking
+        tone(PIN_PZO, 880); // A5
+        delay(500);
+        noTone(PIN_PZO);
+        delay(500);
+      }
+      tone(PIN_PZO, 1760, 500); // A6; non-blocking, tone will be heard 500 ms into gameplay
+    }
+
+    /** Game over sequence. THIS IS A BLOCKING FUNCTION. */
+    void onGameOver() {
+      playFailSound(); // sound
+      clearMatrix(); // clear screen
     }
 
     /** Game loop. Call every iteration. Takes in last time delta in ms. */
     void loop(unsigned int delta) {
+      // game over stack
+
+      if (locBall[1] == 0 || locBall[1] == 7) { // the ball managing to reach either column 0 or 7 means player did not successfully hit with platform
+        isGameOver = true;
+        return;
+      }
+
       // ball move-decision and bounce stack
 
       shouldBallMove = false; // always first
@@ -306,7 +349,7 @@ void setup() {
 
   // led matrix
   lc.shutdown(0, false);
-  lc.setIntensity(0, 1); // holy crap why is this thing so bright
+  lc.setIntensity(0, 1); // holy f*ck why is this thing so bright
 
   // init
   clearMatrix();
@@ -367,7 +410,7 @@ void loop() {
     buttonHoldStatus[4] = 0; // signal release
   }
 
-  // game load, unload, and reset stack
+  // game load and unload stack
 
   if (Serial.available()) {
     uint8_t nextSig = Serial.parseInt();
@@ -382,6 +425,8 @@ void loop() {
         nowGameID = 1;
         digitalWrite(PIN_LED, LOW);
         gamePong.reset();
+        gamePong.onIntro();
+        lastMillis = millis();
         break;
       case SIG_GAMEID_2: // snake
         nowGameID = 2;
@@ -392,6 +437,13 @@ void loop() {
   }
 
   // game loop stack
+
+  if (gamePong.isGameOver) { // to do when game over
+    gamePong.onGameOver();
+    gamePong.reset();
+    gamePong.onIntro();
+    lastMillis = millis();
+  }
 
   unsigned long now = millis();
   unsigned int delta = now - lastMillis; // find one consistent time delta
