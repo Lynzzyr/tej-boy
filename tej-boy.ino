@@ -228,28 +228,28 @@ class Pong {
         // short sound on plat hit
         if ((isLeft || isRight) && !wasLastDirVert) tone(PIN_PZO, 1319, 50);
 
-        // edge case: ensure vertical bounce only happens once
-        if (wasLastDirVert) {
-            if (locBall[1] == 1) dir = (dir == UP) ? NOEA : SOEA;
-            if (locBall[1] == 6) dir = (dir == UP) ? NOWE : SOWE;
-            wasLastDirVert = false;
-          }
         // floor/ceil AND plat edge cases
-        else if (isUp && isLeft) { // ceil AND left plat
+        if (isUp && isLeft) { // ceil AND left plat
           dir = SOEA;
+          wasLastDirVert = false;
         }
         else if (isUp && isRight) { // ceil AND right plat
           dir = SOWE;
+          wasLastDirVert = false;
         }
         else if (isDown && isLeft) { // floor AND left plat
           dir = NOEA;
+          wasLastDirVert = false;
         }
         else if (isDown && isRight) { // floor AND right plat
           dir = NOWE;
+          wasLastDirVert = false;
         }
-        // floor/ceil cases
-        else if (isUp || isDown) {
-          dir = invertDirection(dir, false);
+        // edge case: ensure vertical bounce only happens once
+        else if (wasLastDirVert) {
+          if (locBall[1] == 1) dir = (dir == UP) ? NOEA : SOEA;
+          if (locBall[1] == 6) dir = (dir == UP) ? NOWE : SOWE;
+          wasLastDirVert = false;
         }
         // plat cases
         else if (isLeft || isRight) {
@@ -264,6 +264,10 @@ class Pong {
             dir = (dir == NOEA || dir == NOWE) ? UP : DOWN; // special 1 vertical
             wasLastDirVert = true;
           }
+        }
+        // floor/ceil cases
+        else if (isUp || isDown) {
+          dir = invertDirection(dir, false);
         }
       }
 
