@@ -84,6 +84,7 @@ void playFailSound() {
   delay(1000);
   tone(PIN_PZO, 117); // A2
   delay(2000);
+  noTone(PIN_PZO);
 }
 
 /** Returns an inverted direction of the specified direction based on given mode. FALSE inverts in vertical, TRUE inverts in horizontal. */
@@ -188,6 +189,7 @@ class Pong {
     void onGameOver() {
       playFailSound(); // sound
       clearMatrix(); // clear screen
+      delay(500);
     }
 
     /** Game loop. Call every iteration. Takes in last time delta in ms. */
@@ -357,6 +359,14 @@ void setup() {
 }
 
 void loop() {
+  // game over pre-signal input stack
+
+  switch (nowGameID) {
+    case 1:
+      if (gamePong.isGameOver) gamePong.onGameOver();
+      break;
+  }
+
   // button input stack
 
   // L_SW
@@ -436,14 +446,18 @@ void loop() {
     }
   }
 
-  // game loop stack
+  // game over post-signal input stack
 
-  if (gamePong.isGameOver) { // to do when game over
-    gamePong.onGameOver();
-    gamePong.reset();
-    gamePong.onIntro();
-    lastMillis = millis();
+  switch (nowGameID) {
+    case 1:
+      if (gamePong.isGameOver) {
+        gamePong.reset();
+        gamePong.onIntro();
+        lastMillis = millis();
+      }
   }
+
+  // game loop stack
 
   unsigned long now = millis();
   unsigned int delta = now - lastMillis; // find one consistent time delta
