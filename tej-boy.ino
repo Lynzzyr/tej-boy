@@ -145,6 +145,7 @@ class Pong {
     Direction dir; // ball direction
 
     unsigned int ballMoveTimer; // fills up each delta until reaches threshold to move ball
+    bool wasLastDirVert;
     bool shouldBallMove;
 
     // functions
@@ -209,7 +210,7 @@ class Pong {
 
       // ball move-decision and bounce stack
 
-      shouldBallMove = false; // always first
+      shouldBallMove = false;
 
       ballMoveTimer += delta;
       if (ballMoveTimer >= msPerDot) { // it's time
@@ -224,8 +225,17 @@ class Pong {
         bool isLeft = ledStatus[locBall[0]][locBall[1] - 1];
         bool isRight = ledStatus[locBall[0]][locBall[1] + 1];
 
+        // short sound on plat hit
+        if ((isLeft || isRight) && !wasLastDirVert) tone(PIN_PZO, 1319, 50);
+
+        // edge case: ensure vertical bounce only happens once
+        if (wasLastDirVert) {
+            if (locBall[1] == 1) dir = (dir == UP) ? NOEA : SOEA;
+            if (locBall[1] == 6) dir = (dir == UP) ? NOWE : SOWE;
+            wasLastDirVert = false;
+          }
         // floor/ceil AND plat edge cases
-        if (isUp && isLeft) { // ceil AND left plat
+        else if (isUp && isLeft) { // ceil AND left plat
           dir = SOEA;
         }
         else if (isUp && isRight) { // ceil AND right plat
@@ -243,11 +253,18 @@ class Pong {
         }
         // plat cases
         else if (isLeft || isRight) {
-          dir = invertDirection(dir, true);
-        }
+          // 50-50 randomizer between diag and 1 move vertical
+          uint8_t rand = (uint8_t) random(4);
 
-        // short sound if hit platform
-        if (isLeft || isRight) tone(PIN_PZO, 1319, 50);
+          if (rand < 2) {
+            dir = invertDirection(dir, true); // normal diag
+            wasLastDirVert = false;
+          }
+          else {
+            dir = (dir == NOEA || dir == NOWE) ? UP : DOWN; // special 1 vertical
+            wasLastDirVert = true;
+          }
+        }
       }
 
       // ball move-action and render stack
@@ -271,6 +288,12 @@ class Pong {
           case SOEA:
             locBall[0] += 1;
             locBall[1] += 1;
+            break;
+          case UP:
+            locBall[0] -= 1;
+            break;
+          case DOWN:
+            locBall[0] += 1;
         }
       }
 
