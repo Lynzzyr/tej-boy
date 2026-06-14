@@ -80,6 +80,17 @@ void clearMatrix() {
   }
 }
 
+/** Plays a universal game start sound. THIS IS A BLOCKING FUNCTION. */
+void playStartSound() {
+  for (uint8_t i = 0; i < 3; i++) { // blocking
+    tone(PIN_PZO, 880); // A5
+    delay(500);
+    noTone(PIN_PZO);
+    delay(500);
+  }
+  tone(PIN_PZO, 1760, 500); // A6; non-blocking, tone will be heard 500 ms into gameplay
+}
+
 /** Play a universal game fail sound. THIS IS A BLOCKING FUNCTION. */
 void playFailSound() {
   tone(PIN_PZO, 165); // E3
@@ -177,19 +188,12 @@ class Pong {
       renderPlats();
       setLedUpright(locBall[0], locBall[1], true);
 
-      // sound
-      for (uint8_t i = 0; i < 3; i++) { // blocking
-        tone(PIN_PZO, 880); // A5
-        delay(500);
-        noTone(PIN_PZO);
-        delay(500);
-      }
-      tone(PIN_PZO, 1760, 500); // A6; non-blocking, tone will be heard 500 ms into gameplay
+      playStartSound();
     }
 
     /** Game over sequence. THIS IS A BLOCKING FUNCTION. */
     void onGameOver() {
-      playFailSound(); // sound
+      playFailSound();
       clearMatrix(); // clear screen
       delay(500);
     }
@@ -241,6 +245,9 @@ class Pong {
         else if (isLeft || isRight) {
           dir = invertDirection(dir, true);
         }
+
+        // short sound if hit platform
+        if (isLeft || isRight) tone(PIN_PZO, 1319, 50);
       }
 
       // ball move-action and render stack
