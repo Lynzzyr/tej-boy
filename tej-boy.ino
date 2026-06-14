@@ -3,6 +3,8 @@
 // FPT
 // 2026-06-##
 
+// This sketch requires the LedControl library to control the MAX7219 chip.
+// More info here: https://docs.arduino.cc/libraries/ledcontrol/.
 #include <LedControl.h>
 
 // ----------------
