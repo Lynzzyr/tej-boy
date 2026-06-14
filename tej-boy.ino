@@ -138,8 +138,8 @@ class Pong {
     unsigned int msPerDot; // speed of ball as an inverse function
     uint8_t platLength; // platform length
 
-    uint8_t locPlatL; // left platform row, topmost dot
-    uint8_t locPlatR; // right platform row
+    int8_t locPlatL; // left platform row, topmost dot
+    int8_t locPlatR; // right platform row
   
     uint8_t locBall[2]; // ball location on matrix
     Direction dir; // ball direction
@@ -325,33 +325,194 @@ class Pong {
 /** Everything needed to run Snake, game ID 2. */
 class Snake {
   private:
-    uint8_t dotsPerSec; // speed of snake
+    // fields
 
-    uint8_t locSnake[2]; // snake head location
+    unsigned int msPerDot; // snake as an inverse function
+
+    int8_t snakeHead[2]; // location of snake head, kinda like a virtual tracker
+    int8_t snakeBody[64][2]; // every single possible coordinate of every single snake body cell
     uint8_t length; // snake length, max 8 x 8 = 64
     Direction dir; // snake heading
 
     uint8_t locApple[2]; // apple location
+    bool shouldAppleMove;
+
+    unsigned int snakeMoveTimer;
+    bool shouldSnakeMove;
+
+    // functions
+
+    /** Propagate snake body from head position based on length. */
+    void propagate() {
+      for (int8_t i = length - 2; i >= 0; i--) {
+        snakeBody[i + 1][0] = snakeBody[i][0];
+        snakeBody[i + 1][1] = snakeBody[i][1];
+      }
+
+      snakeBody[0][0] = snakeHead[0];
+      snakeBody[0][1] = snakeHead[1];
+    }
+
+    /** Render snake based on snake body. Set erase to TRUE to act as an eraser instead. */
+    void render(bool erase = false) {
+      for (uint8_t i = 0; i < length; i++) {
+        setLedUpright(snakeBody[i][0], snakeBody[i][1], !erase);
+      }
+    }
+
+    /** Set a new random location for the apple. */
+    void relocateRandom() {
+      uint8_t emptyCells[64 - length][2];
+
+      uint8_t emptyIndex = 0;
+      for (uint8_t i = 0; i < 8; i++) { // iterate thru all cells, note which are off
+        for (uint8_t j = 0; j < 8; j++) {
+          if (!ledStatus[i][j]) {
+            emptyCells[emptyIndex][0] = i;
+            emptyCells[emptyIndex][1] = j;
+            emptyIndex++;
+          }
+        }
+      }
+
+      uint8_t randCell = (uint8_t) random(64 - length);
+      locApple[0] = emptyCells[randCell][0];
+      locApple[1] = emptyCells[randCell][1];
+    }
   
   public:
+    bool isGameOver;
+
+    /** Snake constructor. Specify speed in dots per second. */
     Snake(uint8_t speed) {
-      dotsPerSec = speed;
-      reset();
+      msPerDot = (unsigned int) round(1000.0 / speed);
     }
 
     /** Resets the game to start state. */
     void reset() {
-      locSnake[0] = 1; // spawnpoint (1, 3)
-      locSnake[1] = 3;
+      snakeHead[0] = snakeHead[1] = 3; // spawnpoint (1, 3)
+
+      for (uint8_t i = 0; i < 64; i++) {
+        snakeBody[i][0] = -1;
+        snakeBody[i][1] = -1;
+      }
       length = 3;
       dir = RIGHT;
 
-      locApple[0] = locApple[1] = 5; // first ever location (5, 5)
+      locApple[0] = 3; // first ever location (3, 6)
+      locApple[1] = 6;
+
+      isGameOver = false;
+    }
+
+    /** Intro sequence post-load. THIS IS A BLOCKING FUNCTION. */
+    void onIntro() {
+      snakeBody[0][0] = snakeHead[0]; // dumb manual initial propagation
+      snakeBody[0][1] = snakeHead[1];
+      snakeBody[1][0] = snakeHead[0];
+      snakeBody[1][1] = snakeHead[1] - 1;
+      snakeBody[2][0] = snakeHead[0];
+      snakeBody[2][1] = snakeHead[1] - 2;
+
+      render();
+      setLedUpright(locApple[0], locApple[1], true);
+
+      playStartSound();
+    }
+
+    /** Game over sequence. THIS IS A BLOCKING FUNCTION. */
+    void onGameOver() {
+      playFailSound();
+      clearMatrix(); // clear screen
+      delay(500);
     }
 
     /** Game loop. Call every iteration. Takes in last time delta in ms. */
     void loop(unsigned int delta) {
-      
+      // apple render stack
+
+      shouldAppleMove = false;
+      setLedUpright(locApple[0], locApple[1], true);
+
+      // snake heading change stack
+
+      if (dir == DOWN || dir == UP) { // only allow horizontal change when going vertically
+        if (buttonStatus[0]) {
+          dir = LEFT;
+          tone(PIN_PZO, 311, 50); // based on Google's snake game
+        }
+        if (buttonStatus[1]) {
+          dir = RIGHT;
+          tone(PIN_PZO, 370, 50);
+        }
+      }
+
+      if (dir == LEFT || dir == RIGHT) { // only allow vertical change when going horizontally
+        if (buttonStatus[3]) {
+          dir = DOWN;
+          tone(PIN_PZO, 277, 50);
+        }
+        if (buttonStatus[4]) {
+          dir = UP;
+          tone(PIN_PZO, 415, 50);
+        }
+      }
+
+      // snake move and render stack
+
+      shouldSnakeMove = false;
+
+      snakeMoveTimer += delta;
+      if (snakeMoveTimer >= msPerDot) {
+        shouldSnakeMove = true;
+        snakeMoveTimer -= msPerDot;
+      }
+
+      if (shouldSnakeMove) {
+        // move snake head
+        switch (dir) {
+          case UP:
+            snakeHead[0] -= 1;
+            break;
+          case DOWN:
+            snakeHead[0] += 1;
+            break;
+          case LEFT:
+            snakeHead[1] -= 1;
+            break;
+          case RIGHT:
+            snakeHead[1] += 1;
+            break;
+        }
+
+        // snake eat or game over substack
+
+        if (snakeHead[0] == locApple[0] && snakeHead[1] == locApple[1]) { // apple eat
+          shouldAppleMove = true;
+          length += 1;
+
+          tone(PIN_PZO, 1480, 50);
+        }
+        else if (
+          ledStatus[snakeHead[0]][snakeHead[1]] || // new head not at apple but at an on LED, which means new head inside snake body
+          snakeHead[0] < 0 || snakeHead[0] > 7 || // new head out of bounds from any edge
+          snakeHead[1] < 0 || snakeHead[1] > 7
+        ) {
+          isGameOver = true;
+          return;
+        }
+
+        // substack end
+
+        render(true); // clear current
+        propagate();
+      }
+
+      render(); // at this point the apple is now part of the snake; exactly LENGTH number of LEDs are on
+
+      // apple relocation stack
+
+      if (shouldAppleMove) relocateRandom();
     }
 };
 
@@ -396,6 +557,9 @@ void loop() {
   switch (nowGameID) {
     case 1:
       if (gamePong.isGameOver) gamePong.onGameOver();
+      break;
+    case 2:
+      if (gameSnake.isGameOver) gameSnake.onGameOver();
       break;
   }
 
@@ -474,6 +638,8 @@ void loop() {
         nowGameID = 2;
         digitalWrite(PIN_LED, LOW);
         gameSnake.reset();
+        gameSnake.onIntro();
+        lastMillis = millis();
         break;
     }
   }
@@ -487,6 +653,14 @@ void loop() {
         gamePong.onIntro();
         lastMillis = millis();
       }
+      break;
+    case 2:
+      if (gameSnake.isGameOver) {
+        gameSnake.reset();
+        gameSnake.onIntro();
+        lastMillis = millis();
+      }
+      break;
   }
 
   // game loop stack
